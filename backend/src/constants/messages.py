@@ -1,0 +1,15 @@
+"""用户可见文案集中处（controller 不硬编码中文提示）。"""
+from __future__ import annotations
+
+MSG_LOGIN_OK = "登录成功"
+MSG_SOURCE_CREATED = "日志源已创建"
+MSG_SOURCE_UPDATED = "日志源已更新"
+MSG_RULE_CREATED = "解析规则已创建"
+MSG_RULE_UPDATED = "解析规则已更新"
+MSG_TEMPLATE_CONFIRMED = "模板已确认"
+MSG_TEMPLATE_IGNORED = "模板已标记为噪声"
+MSG_IMPORT_PREVIEW = "挖掘预览完成"
+MSG_IMPORT_APPLIED = "模板已应用到事件"
+MSG_ALERT_ACKED = "告警已确认"
+MSG_ALERT_SILENCED = "告警已静默"
+MSG_SCAN_DONE = "异常扫描完成"

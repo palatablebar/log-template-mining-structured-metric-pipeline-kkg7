@@ -1,0 +1,34 @@
+/* logmine 设计 token —— 视觉方向：气象站观测板
+ * 浅灰蓝纸面 + 深青灰墨色 + 琥珀信号；全部 oklch，禁止组件内硬编码颜色。 */
+:root {
+  --paper: oklch(0.965 0.012 230);
+  --paper-deep: oklch(0.938 0.014 230);
+  --paper-raised: oklch(0.985 0.008 232);
+  --ink: oklch(0.32 0.03 210);
+  --ink-soft: oklch(0.46 0.025 210);
+  --ink-dim: oklch(0.62 0.018 222);
+  --ink-faint: oklch(0.74 0.014 225);
+  --rule: oklch(0.862 0.014 225);
+  --rule-strong: oklch(0.78 0.017 225);
+  --amber: oklch(0.72 0.14 75);
+  --amber-deep: oklch(0.62 0.145 66);
+  --amber-wash: oklch(0.94 0.045 82);
+  --teal: oklch(0.52 0.05 205);
+  --teal-wash: oklch(0.925 0.018 208);
+  --brick: oklch(0.55 0.16 28);
+  --brick-wash: oklch(0.94 0.03 30);
+  --ok: oklch(0.55 0.07 155);
+
+  --font-display: 'Archivo Narrow', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --font-mono: 'Source Code Pro', 'SFMono-Regular', ui-monospace, monospace;
+
+  --step--1: clamp(0.7rem, 0.66rem + 0.18vw, 0.78rem);
+  --step-0: clamp(0.82rem, 0.78rem + 0.2vw, 0.9rem);
+  --step-1: clamp(1rem, 0.94rem + 0.3vw, 1.12rem);
+  --step-2: clamp(1.28rem, 1.16rem + 0.55vw, 1.55rem);
+  --step-3: clamp(1.9rem, 1.6rem + 1.4vw, 2.9rem);
+  --step-4: clamp(2.6rem, 2rem + 2.6vw, 4.4rem);
+
+  --rail: 236px;
+  --hair: 1px;
+}
