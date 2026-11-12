@@ -144,6 +144,8 @@ def apply_preview(db: Session, lines: list[str], result, resolve) -> dict:
     created_templates = 0
     assigned = 0
     inserted = 0
+    # 受影响的 (模板, 时间桶)：新插入/新回填模板的事件所在桶，供补传补算圈定范围
+    affected_pairs: set[tuple[int, datetime]] = set()
     template_by_signature: dict[str, LogTemplate] = {}
     existing = {
         template.signature: template
@@ -234,10 +236,13 @@ def apply_preview(db: Session, lines: list[str], result, resolve) -> dict:
             db.add(event)
             db.flush()
             inserted += 1
+            if template_row is not None:
+                affected_pairs.add((template_row.id, event.bucket_start))
         elif template_row is not None and event.template_id is None:
             event.template_id = template_row.id
             event.bucket_start = bucket_start(event.event_time)
             assigned += 1
+            affected_pairs.add((template_row.id, event.bucket_start))
     # pending 回填：上面按 line_hash 命中已存在的 pending 事件；再补一次「已存在的 pending 行按签名匹配」
     for hash_key, event_id in pending_hashes.items():
         event = db.get(LogEvent, event_id)
@@ -249,6 +254,7 @@ def apply_preview(db: Session, lines: list[str], result, resolve) -> dict:
             event.template_id = template_by_signature[matched].id
             event.bucket_start = bucket_start(event.event_time)
             assigned += 1
+            affected_pairs.add((event.template_id, event.bucket_start))
 
     # 模板频次 / 首末出现时间：按库里真实计数刷新（不是前端传入的数字）
     for template_row in template_by_signature.values():
@@ -264,6 +270,8 @@ def apply_preview(db: Session, lines: list[str], result, resolve) -> dict:
         template_row.last_seen_at = stats_row[2]
 
     db.flush()
+    affected_buckets = sorted({bucket for _, bucket in affected_pairs})
+    affected_template_ids = sorted({template_id for template_id, _ in affected_pairs})
     logger.info(
         "drain.run lines=%s known=%s new_templates=%s coverage=%s",
         len(lines),
@@ -277,6 +285,8 @@ def apply_preview(db: Session, lines: list[str], result, resolve) -> dict:
         "inserted_events": inserted,
         "persisted": True,
         "template_ids": {template.template_str: template.id for template in template_by_signature.values()},
+        "affected_buckets": [item.isoformat(sep=" ") for item in affected_buckets],
+        "affected_template_ids": affected_template_ids,
     }
 
 

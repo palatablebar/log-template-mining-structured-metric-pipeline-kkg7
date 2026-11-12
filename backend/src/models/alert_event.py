@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import Base, TimestampMixin
@@ -12,6 +12,10 @@ class AlertEvent(Base, TimestampMixin):
     """告警触发记录：一条 = 一个 (规则, 模板, 桶) 的判定结果（含基线快照便于复盘）。"""
 
     __tablename__ = "alert_event"
+    __table_args__ = (
+        # 同一 (模板, 时间桶) 只允许一条告警：补算按此键幂等 upsert，重复投递不新增告警
+        UniqueConstraint("template_id", "bucket_start", name="uq_alert_template_bucket"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     rule_id: Mapped[int] = mapped_column(
@@ -36,3 +40,5 @@ class AlertEvent(Base, TimestampMixin):
     silenced_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     note: Mapped[str] = mapped_column(Text, nullable=False, default="")
     origin: Mapped[str] = mapped_column(String(16), nullable=False, default="scan", index=True)
+    # 被补算更新过的次数（补算幂等：重复投递同一批日志不会重复 +1）
+    recompute_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

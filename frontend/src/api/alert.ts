@@ -1,10 +1,24 @@
 import { api, queryString } from './client';
-import type { AlertEvent, AlertRule, ScanResult } from '../types/models';
+import type {
+  AlertEvent,
+  AlertRule,
+  RecomputeJob,
+  RecomputePreview,
+  ScanResult,
+} from '../types/models';
 
 export interface AlertListResponse {
   items: AlertEvent[];
   total: number;
   stats: { total: number; firing: number; acknowledged: number; silenced: number; resolved: number };
+}
+
+export interface RecomputePayload {
+  start?: string;
+  end?: string;
+  template_ids?: number[];
+  idempotency_key?: string;
+  note?: string;
 }
 
 export const alertApi = {
@@ -14,6 +28,11 @@ export const alertApi = {
     api.patch<{ id: number; message: string }>(`/alerts/rules/${id}`, payload),
   events: (status?: string) => api.get<AlertListResponse>(`/alerts/events${queryString({ status, limit: 100 })}`),
   scan: () => api.post<ScanResult>('/alerts/scan'),
+  recomputePreview: (payload: RecomputePayload) =>
+    api.post<RecomputePreview>('/alerts/recompute/preview', payload),
+  recompute: (payload: RecomputePayload) => api.post<RecomputeJob>('/alerts/recompute', payload),
+  recomputeJobs: () => api.get<{ items: RecomputeJob[]; total: number }>('/alerts/recompute/jobs'),
+  recomputeJob: (id: number) => api.get<RecomputeJob>(`/alerts/recompute/jobs/${id}`),
   ack: (id: number, payload: { note: string; silence_minutes?: number }) =>
     api.post<{ item: AlertEvent; message: string }>(`/alerts/events/${id}/ack`, payload),
   silence: (id: number, payload: { minutes: number; note: string }) =>

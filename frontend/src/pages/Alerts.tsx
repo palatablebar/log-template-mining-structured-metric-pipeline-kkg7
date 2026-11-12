@@ -4,6 +4,7 @@ import { eventApi } from '../api/event';
 import { EmptyState } from '../components/common/EmptyState';
 import { GaugeMeter } from '../components/common/GaugeMeter';
 import { LevelBadge } from '../components/common/LevelBadge';
+import { RecomputePanel } from '../components/common/RecomputePanel';
 import { StatusPill } from '../components/common/StatusPill';
 import { TrendChart } from '../components/common/TrendChart';
 import { ALERT_STATUS_LABELS, TRIGGER_REASON_LABELS } from '../constants/enums';
@@ -116,6 +117,8 @@ export const AlertsPage = () => {
           </div>
         </section>
 
+        <RecomputePanel canScan={can('scan:run')} onChanged={() => void load()} />
+
         <section className="panel">
           <div className="panel-head">
             <h2>触发记录</h2>
@@ -176,6 +179,7 @@ export const AlertsPage = () => {
                         <div className="mono" style={{ color: 'var(--ink-dim)', marginTop: 4 }}>
                           {alert.silenced_until ? `静默至 ${formatTime(alert.silenced_until).slice(11, 16)}` : '—'}
                           {alert.acknowledged_by ? <div>by {alert.acknowledged_by}</div> : null}
+                          {alert.recompute_count > 0 ? <div>补算 ×{alert.recompute_count}</div> : null}
                         </div>
                       </td>
                       <td>
@@ -258,6 +262,7 @@ export const AlertsPage = () => {
                 <li>z &gt; 3.5 判尖峰；error 占比 &lt;5% → &gt;25% 也触发。</li>
                 <li>历史桶 &lt; 3 时标 insufficient_history，不判异常。</li>
                 <li>同模板 30 分钟去抖，确认/静默写审计。</li>
+                <li>补传补算只重算受影响 (模板 × 桶)：仍命中更新判定并保留确认/静默，不再命中转已恢复；同 (模板, 桶) 唯一，重复投递不新增告警。</li>
               </ul>
               <div className="observation">
                 <div className="metric">

@@ -53,6 +53,14 @@ export const TRIGGER_REASON_LABELS: Record<string, string> = {
   spike_and_error_ratio: '尖峰 + 占比突升',
 };
 
+export const RECOMPUTE_ACTION_LABELS: Record<string, string> = {
+  created: '新补告警',
+  updated: '更新判定',
+  resolved: '转已恢复',
+  unchanged: '维持无告警',
+  skipped: '历史不足/跳过',
+};
+
 export const SLOT_LABELS: Record<SlotType, string> = {
   num: '数字',
   ip: 'IP',

@@ -54,7 +54,7 @@ docker compose exec -T backend python -m scripts.seed_demo
 `/alerts`「运行异常扫描」（error 模板尖峰 z=6.745 触发告警）→ 用 engineer 登录确认并静默 30min →
 viewer 登录验证只读（建规则 403）。
 
-## 3. 两个核心算法（Python 真算，结果落库，前端只展示）
+## 3. 三个核心算法（Python 真算，结果落库，前端只展示）
 
 ### A. Drain 日志模板挖掘 · `backend/src/services/drain_engine.py`
 
@@ -77,6 +77,21 @@ viewer 登录验证只读（建规则 403）。
 可复现条件：`SEED_ANCHOR=2026-11-10T15:05:00` 固定时间轴 + 确定性样本生成器
 （`backend/scripts/fixtures.py`，无 random），因此 z 值与覆盖率每次重跑一致。
 
+### C. 补传补算（recompute）· `backend/src/services/alert_service.py`
+
+值班补传前一天日志后，异常扫描仍只看全局最新 5min 桶，旧桶告警无法修正。补算只重算受影响范围：
+
+1. 自动圈定 `origin='import'` 事件覆盖的 (模板 × 桶)，并向下游扩展 12 个桶（基线窗口宽度），
+   也可手动传 start/end（上限 72h、5000 个模板×桶）；
+2. 逐 (模板, 桶) 复用 `anomaly_engine.evaluate_bucket`，与扫描完全同口径（含缺桶补 0、
+   有效历史桶 < 3 标 `insufficient_history`）；
+3. 仍命中 → 刷新判定快照，**保留原确认（acknowledged_*）与静默（silenced_until、状态）**；
+   不再命中 → 状态转 `resolved`，确认/静默痕迹仍在；新命中 → 补建告警（不走去抖）；
+4. `alert_event` 上有 `(template_id, bucket_start)` 唯一约束 + 批次幂等键，
+   同一批日志重复投递不新增告警，重复请求直接返回上次批次（`deduplicated=true`）；
+5. 每次补算落 `alert_recompute_job`（汇总）+ `alert_recompute_detail`（逐桶重算前后
+   状态/计数/z/error 占比），告警页按时间桶查看重算前后差异，并写 `alerts.recompute` 审计。
+
 ## 4. 页面（6 个）
 
 | 路由 | 内容 | 共享组件 |
@@ -85,7 +100,7 @@ viewer 登录验证只读（建规则 403）。
 | `/sources` | 日志源与解析规则（左列表右详情） | `SourceCard` |
 | `/templates` | 模板库：模板串 + 槽位高亮 + 频次 | `TemplateTokenStrip` |
 | `/events` | 事件检索 + 按模板聚合趋势（Canvas2D 折线 + error 柱） | `TrendChart` |
-| `/alerts` | 告警规则与触发记录（mini 趋势 + 判定快照） | `TrendChart`（mini） |
+| `/alerts` | 告警规则与触发记录（mini 趋势 + 判定快照 + 补传补算，按时间桶看重算前后） | `TrendChart`（mini）/ `RecomputePanel` |
 | `/import` | 导入/采样 → Drain 挖掘预览 → 应用模板 | `TemplateTokenStrip` / `SourceCard` |
 
 ## 5. 技术栈
@@ -113,9 +128,9 @@ gb-555/
 │  └─ src/
 │     ├─ config/                # settings / database / app / celery / bootstrap
 │     ├─ constants/             # enums / roles / error_codes / limits / messages / log_templates
-│     ├─ models/                # log_source / parse_rule / log_template / log_event / alert_rule / alert_event / user / audit_log
+│     ├─ models/                # log_source / parse_rule / log_template / log_event / alert_rule / alert_event / alert_recompute / user / audit_log
 │     ├─ schemas/               # 请求响应模型
-│     ├─ services/              # drain_engine / anomaly_engine / source / template / event / alert / import / audit / quota / auth
+│     ├─ services/              # drain_engine / anomaly_engine / source / template / event / alert（含补传补算）/ import / audit / quota / auth
 │     ├─ controllers/           # 编排 service + 写审计
 │     ├─ routes/                # health / auth / sources / templates / events / alerts / imports / audit / meta
 │     ├─ middlewares/           # auth / rbac / rate_limit / audit_logger / error_handler
@@ -146,7 +161,8 @@ gb-555/
    的 `PERMISSION_MATRIX` 与 `stores/authStore.can()` 对应，页面用 `RequireRole` 门禁。
 2. **审计日志**：`audit_log` 表；`services/audit_service.record()` 在 controller 内显式写
    （login / sources.create|update / parse_rules.create|update / templates.confirm|mark_noise /
-   events.import_apply / alerts.rule_create|rule_update / alerts.scan / alerts.acknowledge|silence）。
+   events.import_apply / alerts.rule_create|rule_update / alerts.scan / alerts.recompute /
+   alerts.acknowledge|silence）。
 3. **限流 / 配额**：`middlewares/rate_limit.guard(bucket)` 用 Redis 滑动窗口做每用户每分钟限流
    （读 180 / 写 40 / 扫描 6），写请求额外扣 `services/quota_service` 的每日角色配额，超限统一 429。
 

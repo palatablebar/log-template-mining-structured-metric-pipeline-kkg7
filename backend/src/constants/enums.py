@@ -73,6 +73,14 @@ class AlertMetric(StrEnum):
     BOTH = "both"
 
 
+class RecomputeAction(StrEnum):
+    CREATED = "created"        # 补算后新命中：补建告警
+    UPDATED = "updated"        # 仍命中：更新判定数据，保留原确认/静默
+    RESOLVED = "resolved"      # 不再命中：转为已恢复
+    UNCHANGED = "unchanged"    # 未命中且本就没有告警
+    SKIPPED = "skipped"        # 历史桶不足等，无法判定
+
+
 class ImportStatus(StrEnum):
     PREVIEW = "preview"
     APPLIED = "applied"

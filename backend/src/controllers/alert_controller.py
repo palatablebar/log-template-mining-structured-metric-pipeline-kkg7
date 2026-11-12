@@ -1,10 +1,15 @@
-"""告警规则 / 触发记录 / 确认 / 静默 / 扫描。"""
+"""告警规则 / 触发记录 / 确认 / 静默 / 扫描 / 补传补算。"""
 from __future__ import annotations
 
 from fastapi import Request
 from sqlalchemy.orm import Session
 
-from src.constants.messages import MSG_ALERT_ACKED, MSG_ALERT_SILENCED, MSG_SCAN_DONE
+from src.constants.messages import (
+    MSG_ALERT_ACKED,
+    MSG_ALERT_SILENCED,
+    MSG_RECOMPUTE_DONE,
+    MSG_SCAN_DONE,
+)
 from src.middlewares.auth import current_ip
 from src.models.user import User
 from src.services import alert_service, audit_service
@@ -106,3 +111,53 @@ def silence(db: Session, alert_id: int, payload: dict, user: User, request: Requ
 
 def formula() -> dict:
     return alert_service.formula()
+
+
+def recompute_preview(payload: dict, db: Session) -> dict:
+    return alert_service.recompute_preview(
+        db,
+        start=payload.get("start"),
+        end=payload.get("end"),
+        template_ids=payload.get("template_ids"),
+    )
+
+
+def run_recompute(db: Session, payload: dict, user: User, request: Request) -> dict:
+    result = alert_service.run_recompute(
+        db,
+        actor=user.email,
+        start=payload.get("start"),
+        end=payload.get("end"),
+        template_ids=payload.get("template_ids"),
+        idempotency_key=payload.get("idempotency_key", ""),
+        note=payload.get("note", ""),
+    )
+    if result.get("id") is not None and not result.get("deduplicated"):
+        audit_service.record(
+            db,
+            user=user,
+            action="alerts.recompute",
+            entity="alert_recompute_job",
+            entity_id=str(result["id"]),
+            detail={
+                "range_start": result.get("range_start"),
+                "range_end": result.get("range_end"),
+                "pairs": result.get("pair_count"),
+                "created": result.get("created"),
+                "updated": result.get("updated"),
+                "resolved": result.get("resolved"),
+                "skipped": result.get("skipped"),
+            },
+            client_ip=current_ip(request),
+        )
+    db.commit()
+    result["message"] = MSG_RECOMPUTE_DONE
+    return result
+
+
+def list_recompute_jobs(db: Session) -> dict:
+    return alert_service.list_recompute_jobs(db)
+
+
+def get_recompute_job(db: Session, job_id: int) -> dict:
+    return alert_service.get_recompute_job(db, job_id)

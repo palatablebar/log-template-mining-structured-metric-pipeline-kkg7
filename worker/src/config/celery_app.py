@@ -1,4 +1,4 @@
-"""worker 侧 Celery 应用：复用 backend 的 settings 与服务层，注册两个任务。"""
+"""worker 侧 Celery 应用：复用 backend 的 settings 与服务层，注册四个任务。"""
 from __future__ import annotations
 
 import sys
@@ -15,7 +15,12 @@ celery_app = Celery(
     "logmine-worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["worker_src.tasks.anomaly_tasks", "worker_src.tasks.mine_tasks", "worker_src.tasks.heartbeat"],
+    include=[
+        "worker_src.tasks.anomaly_tasks",
+        "worker_src.tasks.mine_tasks",
+        "worker_src.tasks.recompute_tasks",
+        "worker_src.tasks.heartbeat",
+    ],
 )
 
 celery_app.conf.update(

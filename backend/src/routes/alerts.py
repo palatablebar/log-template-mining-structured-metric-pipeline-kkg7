@@ -9,7 +9,7 @@ from src.controllers import alert_controller
 from src.middlewares.rbac import require_permission
 from src.middlewares.rate_limit import guard
 from src.models.user import User
-from src.schemas.alert import AckIn, AlertRuleIn, AlertRulePatch, SilenceIn
+from src.schemas.alert import AckIn, AlertRuleIn, AlertRulePatch, RecomputeIn, SilenceIn
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -57,6 +57,35 @@ def run_scan(
     user: User = Depends(require_permission("scan:run")),
 ) -> dict:
     return alert_controller.run_scan(db, user, request)
+
+
+@router.post("/recompute/preview", dependencies=[guard("scan")])
+def recompute_preview(
+    payload: RecomputeIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("scan:run")),
+) -> dict:
+    return alert_controller.recompute_preview(payload.model_dump(), db)
+
+
+@router.post("/recompute", dependencies=[guard("scan")])
+def run_recompute(
+    payload: RecomputeIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("scan:run")),
+) -> dict:
+    return alert_controller.run_recompute(db, payload.model_dump(), user, request)
+
+
+@router.get("/recompute/jobs", dependencies=[guard("read")])
+def list_recompute_jobs(db: Session = Depends(get_db)) -> dict:
+    return alert_controller.list_recompute_jobs(db)
+
+
+@router.get("/recompute/jobs/{job_id}", dependencies=[guard("read")])
+def get_recompute_job(job_id: int, db: Session = Depends(get_db)) -> dict:
+    return alert_controller.get_recompute_job(db, job_id)
 
 
 @router.post("/events/{alert_id}/ack", dependencies=[guard("write")])

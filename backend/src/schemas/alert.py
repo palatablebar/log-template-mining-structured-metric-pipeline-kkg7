@@ -37,3 +37,13 @@ class AckIn(BaseModel):
 class SilenceIn(BaseModel):
     minutes: int = Field(default=30, ge=1, le=1440)
     note: str = Field(default="", max_length=1000)
+
+
+class RecomputeIn(BaseModel):
+    """补传补算入参：时间范围可空（空则自动取导入事件覆盖的桶）。"""
+
+    start: str | None = Field(default=None, max_length=32)
+    end: str | None = Field(default=None, max_length=32)
+    template_ids: list[int] | None = None
+    idempotency_key: str = Field(default="", max_length=64)
+    note: str = Field(default="", max_length=1000)

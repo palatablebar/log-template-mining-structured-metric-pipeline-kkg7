@@ -152,6 +152,79 @@ export interface AlertEvent {
   silenced_until: string | null;
   note: string;
   origin: string;
+  recompute_count: number;
+}
+
+export type RecomputeAction = 'created' | 'updated' | 'resolved' | 'unchanged' | 'skipped';
+
+export interface RecomputePreview {
+  range_start: string | null;
+  range_end: string | null;
+  expanded_end?: string;
+  auto: boolean;
+  bucket_count: number;
+  template_count: number;
+  pair_count: number;
+  buckets: string[];
+  template_ids?: number[];
+  message?: string;
+}
+
+export interface RecomputeDetail {
+  id: number;
+  job_id: number;
+  template_id: number;
+  template_str: string;
+  service: string;
+  bucket_start: string;
+  action: RecomputeAction;
+  alert_id: number | null;
+  before_status: AlertStatus | null;
+  after_status: AlertStatus | null;
+  before_count: number | null;
+  after_count: number | null;
+  before_z_score: number | null;
+  after_z_score: number | null;
+  before_error_ratio: number | null;
+  after_error_ratio: number | null;
+  reason: string;
+  note: string;
+}
+
+export interface RecomputeBucketSummary {
+  bucket_start: string;
+  total: number;
+  created: number;
+  updated: number;
+  resolved: number;
+  unchanged: number;
+  skipped: number;
+  before_firing: number;
+  after_firing: number;
+}
+
+export interface RecomputeJob {
+  id: number;
+  idempotency_key: string;
+  triggered_by: string;
+  range_start: string | null;
+  range_end: string | null;
+  affected_bucket_count: number;
+  affected_template_count: number;
+  pair_count: number;
+  created: number;
+  updated: number;
+  resolved: number;
+  unchanged: number;
+  skipped: number;
+  status: string;
+  elapsed_ms: number;
+  note: string;
+  finished_at: string | null;
+  details?: RecomputeDetail[];
+  buckets?: RecomputeBucketSummary[];
+  deduplicated?: boolean;
+  message?: string;
 }
 
 export interface MinedTemplatePreview {

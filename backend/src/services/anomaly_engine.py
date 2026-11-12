@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.constants.enums import EventLevel, TriggerReason
 from src.utils.time_buckets import BUCKET_MINUTES
@@ -28,6 +28,7 @@ ERROR_RATIO_LOW = 0.05
 ERROR_RATIO_HIGH = 0.25
 MAD_FALLBACK = 1.0
 ERROR_LEVELS = (EventLevel.ERROR.value, EventLevel.FATAL.value)
+timedelta_resolution = timedelta(minutes=BUCKET_MINUTES)
 
 
 @dataclass
@@ -253,6 +254,44 @@ def evaluate_template(
     )
 
 
+def evaluate_bucket(
+    template_id: int,
+    template_str: str,
+    bucket_counts: dict[datetime, tuple[int, int]],
+    target_bucket: datetime,
+    rule: RuleConfig,
+    service: str = "",
+) -> AlertCandidate | SkippedTemplate:
+    """对单个目标桶做判定：基线取目标桶之前 baseline_buckets 个桶（缺桶补 0）。
+
+    与 evaluate_template 完全同口径（含 insufficient_history 判定），
+    供补传补算逐 (模板, 桶) 复用，避免补算路径与扫描路径出现两套算法。
+    注意：缺桶虽补 0 参与中位数/MAD 计算，但「有效历史桶」只认实际有事件的桶，
+    与 run_scan 按真实分组行构造序列的口径一致。
+    """
+    history: list[tuple[datetime, int, int]] = []
+    effective_history = 0
+    cursor = target_bucket
+    for _ in range(rule.baseline_buckets):
+        cursor = cursor - timedelta_resolution
+        count, errors = bucket_counts.get(cursor, (0, 0))
+        history.append((cursor, count, errors))
+        if count > 0:
+            effective_history += 1
+    if effective_history < MIN_HISTORY_BUCKETS:
+        return SkippedTemplate(
+            template_id=template_id,
+            template_str=template_str,
+            reason="insufficient_history",
+            history_buckets=effective_history,
+        )
+    history.reverse()
+    target_count, target_errors = bucket_counts.get(target_bucket, (0, 0))
+    raw_series = history + [(target_bucket, target_count, target_errors)]
+    series = build_series(raw_series)
+    return evaluate_template(template_id, template_str, series, rule, service)
+
+
 def scan_series(
     series_by_template: dict[int, tuple[str, str, list[tuple[datetime, int, int]]]],
     rule_for_template,
@@ -315,6 +354,7 @@ __all__ = [
     "SkippedTemplate",
     "build_series",
     "describe_formula",
+    "evaluate_bucket",
     "evaluate_template",
     "mad",
     "median",

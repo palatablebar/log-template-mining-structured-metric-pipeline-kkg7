@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from src.models.base import Base, now_local, TimestampMixin
 from src.models.alert_event import AlertEvent
+from src.models.alert_recompute import AlertRecomputeDetail, AlertRecomputeJob
 from src.models.alert_rule import AlertRule
 from src.models.audit_log import AuditLog
 from src.models.log_event import LogEvent
@@ -16,6 +17,8 @@ __all__ = [
     "TimestampMixin",
     "now_local",
     "AlertEvent",
+    "AlertRecomputeDetail",
+    "AlertRecomputeJob",
     "AlertRule",
     "AuditLog",
     "LogEvent",
